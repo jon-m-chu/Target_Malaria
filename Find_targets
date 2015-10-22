@@ -1,0 +1,73 @@
+Sub Find_targets()
+
+'Find_targets Macro
+    'Generates a ranked list of conserved targets based on 21 genomes + Ag1000 data
+    'To avoid screen flickering and speed up program
+    Application.ScreenUpdating = False
+
+'Define variables
+    'r1 & c1 refer to row and column position of left-most chromosomal position cell, respectively
+    'Use this as the starting position for each iteration
+    'c1 will increase by 1 with each iteration, r1 will increase by 11 at the end of each row
+    Dim r1, c1 As Integer
+        r1 = 3
+        c1 = 2
+    'orow refers to row in output table
+    'Will increase by 1 with each iteration
+    Dim orow As Integer
+        orow = 2
+
+'Prepare output sheet
+    'Creates a new sheet after Sheet 1 named "Output"
+    Sheets.Add After:=Sheet1
+    ActiveSheet.Name = "Output"
+    'Labels column containing sum of variation frequency from 21 genomes and Ag1000
+    Cells(1, 1).Value = "Sum"
+    'Labels column containing number of varying positions according to 21 genomes and Ag1000
+    Cells(1, 2).Value = "Count"
+    'Labels column containing left-most chromosomal position to find original sequence
+    Cells(1, 3).Value = "Position"
+
+'Iteration
+    Worksheets("Sheet1").Select
+    Do
+    'nt returns 22 if looking at continuous target sequence
+    Dim nt As Integer
+    nt = Application.WorksheetFunction.CountIf(Range(Cells(r1, c1), Cells(r1, c1 + 21)), ">0")
+    'notend returns False if at end of row
+    Dim notend As Boolean
+    notend = Application.WorksheetFunction.IsText(Cells(r1 + 1, c1 + 21)) = True
+    'Check if third row, first column cell is number. Returns false if at end of data set
+    Dim valid As Boolean
+    valid = Application.WorksheetFunction.IsNumber(Cells(r1 + 2, c1)) = True
+    
+    'test variables
+    If nt = 22 And notend = True Then
+    'Add Sum
+    Worksheets("Output").Cells(orow, 1).Value = Application.WorksheetFunction.sum(Range(Cells(r1 + 2, c1), Cells(r1 + 2, c1 + 21))) + Application.WorksheetFunction.sum(Range(Cells(r1 + 6, c1), Cells(r1 + 6, c1 + 21)))
+    'MsgBox Application.WorksheetFunction.sum(Range(Cells(r1 + 2, c1), Cells(r1 + 2, c1 + 21))) & " 21 sum"
+    'MsgBox Application.WorksheetFunction.sum(Range(Cells(r1 + 6, c1), Cells(r1 + 6, c1 + 21))) & " 1000 sum"
+    'Add Count
+    Worksheets("Output").Cells(orow, 2).Value = Application.WorksheetFunction.CountIf(Range(Cells(r1 + 2, c1), Cells(r1 + 2, c1 + 21)), ">0") + Application.WorksheetFunction.CountIf(Range(Cells(r1 + 6, c1), Cells(r1 + 6, c1 + 21)), ">0")
+    'Add Position
+    Worksheets("Output").Cells(orow, 3).Value = Cells(r1, c1).Value
+    orow = orow + 1
+    c1 = c1 + 1
+    End If
+    
+    If nt < 22 And notend = True Then
+    c1 = c1 + 1
+    End If
+    
+    If notend = False Then
+    c1 = 2
+    r1 = r1 + 11
+    End If
+    
+    Loop Until valid = False
+
+'To see end result
+    Application.ScreenUpdating = True
+
+
+End Sub
