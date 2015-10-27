@@ -1,0 +1,221 @@
+Sub Find_targets_7280_5958()
+'Generates a ranked list of conserved targets based on 21 genomes + Ag1000 data
+
+'To avoid screen flickering and speed up program
+Application.ScreenUpdating = False
+
+'Define variables
+    'length refers to desired target length
+    Dim length As Integer
+        length = 22
+    'threshold value for 21 genomes
+    Dim twentyone_th As Double
+        twentyone_th = (2 / 21)
+    'threshold value for Ag1000
+    Dim ag_th As Double
+        ag_th = 0.005
+    'r1 & c1 refer to row and column position of left-most chromosomal position cell, respectively
+    Dim r1, c1 As Integer
+        r1 = 3
+        c1 = 2
+    'orow refers to row in output table
+    Dim orow As Integer
+        orow = 2
+    
+'Prepare output sheet
+    'Creates a new sheet after Sheet 1 named "Output"
+    Sheets.Add After:=Sheet1
+    ActiveSheet.Name = "Output"
+    'Labels column containing sum of variation frequency from 21 genomes and Ag1000
+    Cells(1, 1).Value = "Sum"
+    'Labels column containing sum of variation frequency below threshold from 21 genomes
+    Cells(1, 2).Value = "Sum Below Threshold 21"
+    'Labels column containing sum of variation frequency below threshold from Ag1000
+    Cells(1, 3).Value = "Sum Below Threshold 1000"
+    'Labels column containing number of varying positions according to 21 genomes and Ag1000
+    Cells(1, 4).Value = "Count"
+    'Labels column containing number of varying positions above threshold from 21
+    Cells(1, 5).Value = "Count Over Threshold 21"
+    'Labels column containing number of varying positions above threshold from 1000
+    Cells(1, 6).Value = "Count Over Threshold 1000"
+    'Labels column containing left-most chromosomal position to find original sequence
+    Cells(1, 7).Value = "Position"
+    'Labels column containing target sequence
+    Cells(1, 8).Value = "Sequence"
+    'Labels column containing central four
+    Cells(1, 9).Value = "Central Four"
+    'Labels column containing reverse complement of target sequence
+    Cells(1, 10).Value = "Reverse Complement"
+    'Labels column containing reverse complement of central four
+    Cells(1, 11).Value = "Reverse Complement Central Four"
+
+'Iteration
+    Worksheets("Sheet1").Select
+    Do
+    If target_length(r1, c1, length) = True And not_end(r1, c1, length) = True Then
+    'Add Sum
+    Worksheets("Output").Cells(orow, 1).Value = sum(r1, c1, length)
+    'Add Sum below threshold 21
+    Worksheets("Output").Cells(orow, 2).Value = sum_bt(r1, c1, length, twentyone_th, 21)
+    'Add Sum below threshold 1000
+    Worksheets("Output").Cells(orow, 3).Value = sum_bt(r1, c1, length, ag_th, 1000)
+    'Add Count
+    Worksheets("Output").Cells(orow, 4).Value = count(r1, c1, length)
+    'Add Count over threshold 21
+    Worksheets("Output").Cells(orow, 5).Value = count_ot(r1, c1, length, twentyone_th, 21)
+    'Add Count over threshold 1000
+    Worksheets("Output").Cells(orow, 6).Value = count_ot(r1, c1, length, ag_th, 1000)
+    'Add Position
+    Worksheets("Output").Cells(orow, 7).Value = Cells(r1, c1).Value
+    'Add Sequence
+    Worksheets("Output").Cells(orow, 8).Value = sequence(r1, c1, length)
+    'Add central four
+    Worksheets("Output").Cells(orow, 9).Value = central_four(sequence(r1, c1, length), length)
+    'Add reverse complement
+    Worksheets("Output").Cells(orow, 10).Value = reverse_complement(r1, c1, length)
+    'Add reverse complement central four
+    Worksheets("Output").Cells(orow, 11).Value = central_four(reverse_complement(r1, c1, length), length)
+    orow = orow + 1
+    c1 = c1 + 1
+    End If
+    
+    If target_length(r1, c1, length) = False And not_end(r1, c1, length) = True Then
+    c1 = c1 + 1
+    End If
+    
+    If not_end(r1, c1, length) = False Then
+    c1 = 2
+    r1 = r1 + 10
+    End If
+    
+    Loop Until valid(r1, c1) = False
+      
+'To see end result
+    Application.ScreenUpdating = True
+
+End Sub
+
+''''Functions for iteration''''
+
+Function target_length(ByVal r1 As Integer, ByVal c1 As Integer, ByVal length As Integer) As Boolean
+'returns true if selected positions satisfy target length requirement
+'returns false if indel, do not add data to output, skip to next position
+    target_length = Application.WorksheetFunction.CountIf(Range(Cells(r1, c1), Cells(r1, c1 + (length - 1))), ">0") = length
+End Function
+Function not_end(ByVal r1 As Integer, ByVal c1 As Integer, ByVal length As Integer) As Boolean
+'returns true if selected positions are not at end of row
+'returns false if at end of row, skip to next row
+    'checks if postion to right of selected positions contains data
+    not_end = Application.WorksheetFunction.IsText(Cells(r1 + 1, c1 + (length - 1)))
+End Function
+Function valid(ByVal r1 As Integer, ByVal c1 As Integer) As Boolean
+'returns true if starting at valid dataset
+'returns false if at end of dataset, end iteration
+    'Check if third row, first column cell is number as expected in valid dataset
+    valid = Application.WorksheetFunction.IsNumber(Cells(r1 + 2, c1))
+End Function
+
+
+''''Functions for output''''
+
+Function sum(ByVal r1 As Integer, ByVal c1 As Integer, ByVal length As Integer) As Double
+'returns sum of variation frequencies from 21 genomes and Ag1000 data
+sum = Application.WorksheetFunction.sum(Range(Cells(r1 + 2, c1), Cells(r1 + 2, c1 + (length - 1)))) + Application.WorksheetFunction.sum(Range(Cells(r1 + 6, c1), Cells(r1 + 6, c1 + (length - 1))))
+End Function
+Function sum_bt(ByVal r1 As Integer, ByVal c1 As Integer, ByVal length As Integer, ByVal th As Double, ByVal dataset As Integer) As Double
+'returns sum of variation frequencies below a threshold
+    'Index position within loop
+    Dim i As Integer
+    'final count
+    Dim s As Double
+    s = 0
+    If (dataset = 21) = True Then
+        For i = c1 To (c1 + (length - 1))
+            If Cells(r1 + 2, i) < th Then
+            s = s + Cells(r1 + 2, i).Value
+            End If
+        Next i
+    End If
+            
+    If (dataset = 1000) = True Then
+        For i = c1 To (c1 + (length - 1))
+            If Cells(r1 + 6, i) < th Then
+            s = s + Cells(r1 + 6, i).Value
+            End If
+        Next i
+    End If
+    sum_bt = s
+End Function
+Function count(ByVal r1 As Integer, ByVal c1 As Integer, ByVal length As Integer) As Integer
+'returns count of varied positions
+    Dim i As Integer
+    Dim c As Integer
+    c = 0
+    For i = c1 To (c1 + (length - 1))
+        If Cells(r1 + 2, i) > 0 Or Cells(r1 + 6, i) > 0 Then
+        c = c + 1
+        End If
+    Next i
+    count = c
+End Function
+Function count_ot(ByVal r1 As Integer, ByVal c1 As Integer, ByVal length As Integer, ByVal th As Double, ByVal dataset As Integer) As Integer
+'returns count of varied positions over a threshold
+    'Index position within loop
+    Dim i As Integer
+    'final count
+    Dim c As Integer
+    c = 0
+    If (dataset = 21) = True Then
+        For i = c1 To (c1 + (length - 1))
+            If Cells(r1 + 2, i) > th Then
+            c = c + 1
+            End If
+        Next i
+    End If
+    If (dataset = 1000) = True Then
+        For i = c1 To (c1 + (length - 1))
+            If Cells(r1 + 6, i) > th Then
+            c = c + 1
+            End If
+        Next i
+    End If
+    count_ot = c
+End Function
+Function sequence(ByVal r1 As Integer, ByVal c1 As Integer, ByVal length As Integer) As String
+'returns target sequence
+    Dim seq As String
+        seq = ""
+    Dim i As Integer
+        For i = c1 To (c1 + (length - 1))
+            seq = seq & Cells(r1 + 1, i).Value
+        Next i
+    sequence = seq
+End Function
+Function reverse_complement(ByVal r1 As Integer, ByVal c1 As Integer, ByVal length As Integer) As String
+'returns reverse complement of target sequence
+    Dim seq As String
+        seq = ""
+    Dim nt As String
+        nt = ""
+    Dim i As Integer
+        For i = c1 To (c1 + (length - 1))
+            nt = Cells(r1 + 1, i).Value
+            If nt = "A" Then
+                seq = seq & "T"
+            End If
+            If nt = "T" Then
+                seq = seq & "A"
+            End If
+            If nt = "G" Then
+                seq = seq & "C"
+            End If
+            If nt = "C" Then
+                seq = seq & "G"
+            End If
+        Next i
+    reverse_complement = StrReverse(seq)
+End Function
+Function central_four(ByVal sequence As String, ByVal length As Integer) As String
+'returns central four
+    central_four = Mid(sequence, (length / 2 - 1), 4)
+End Function
